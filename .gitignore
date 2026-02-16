@@ -1,0 +1,7 @@
+bin/
+.idea/
+.vscode/
+*.log
+*.tmp
+*.swp
+coverage.out
