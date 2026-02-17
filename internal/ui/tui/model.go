@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	minWidth  = 88
-	minHeight = 22
+	minWidth                 = 88
+	minHeight                = 22
+	statusErrorPrefix        = "Error: "
+	settingsSourceEnvDefault = "env/default"
 )
 
 type Services struct {
@@ -149,113 +151,180 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		if key.Matches(msg, m.keys.Quit) {
-			m.logger.Info("quitting")
-			return m, tea.Quit
-		}
-
-		if key.Matches(msg, m.keys.ToggleHelp) {
-			m.showHelp = !m.showHelp
-			m.help.ShowAll = m.showHelp
-			return m, nil
-		}
-
-		if m.confirming {
-			return m.updateConfirm(msg)
-		}
-
-		if m.activeForm != nil {
-			return m.updateForm(msg)
-		}
-
-		if m.searching {
-			if key.Matches(msg, m.keys.Cancel) {
-				m.searching = false
-				m.searchInput.Blur()
-				return m, nil
-			}
-
-			var cmd tea.Cmd
-			m.searchInput, cmd = m.searchInput.Update(msg)
-			m.searchQuery = m.searchInput.Value()
-			m.refreshRouteData()
-			return m, cmd
-		}
-
-		switch {
-		case key.Matches(msg, m.keys.NextRoute):
-			m.route = nextRoute(m.route)
-			m.refreshRouteData()
-			return m, m.setStatus(fmt.Sprintf("Switched to %s", m.route), statusInfo)
-		case key.Matches(msg, m.keys.PrevRoute):
-			m.route = prevRoute(m.route)
-			m.refreshRouteData()
-			return m, m.setStatus(fmt.Sprintf("Switched to %s", m.route), statusInfo)
-		case key.Matches(msg, m.keys.Dashboard):
-			m.route = routeDashboard
-			m.refreshRouteData()
-			return m, nil
-		case key.Matches(msg, m.keys.Books):
-			m.route = routeBooks
-			m.refreshRouteData()
-			return m, nil
-		case key.Matches(msg, m.keys.Members):
-			m.route = routeMembers
-			m.refreshRouteData()
-			return m, nil
-		case key.Matches(msg, m.keys.Loans):
-			m.route = routeLoans
-			m.refreshRouteData()
-			return m, nil
-		case key.Matches(msg, m.keys.Reports):
-			m.route = routeReports
-			m.refreshRouteData()
-			return m, nil
-		case key.Matches(msg, m.keys.Settings):
-			m.route = routeSettings
-			m.refreshRouteData()
-			return m, nil
-		case key.Matches(msg, m.keys.Search):
-			m.searching = true
-			m.searchInput.Focus()
-			return m, nil
-		case key.Matches(msg, m.keys.Add):
-			return m.startAddFlow()
-		case key.Matches(msg, m.keys.CreateCopy):
-			if m.route == routeBooks {
-				m.startCopyForm(m.selectedID())
-			}
-			return m, nil
-		case key.Matches(msg, m.keys.Archive):
-			return m.startArchiveOrToggleConfirm()
-		case key.Matches(msg, m.keys.Filter):
-			if m.route == routeLoans {
-				m.cycleLoanFilter()
-				m.refreshRouteData()
-				return m, m.setStatus("Loan filter: "+string(m.loanFilter), statusInfo)
-			}
-			return m, nil
-		case key.Matches(msg, m.keys.Issue):
-			if m.route == routeLoans {
-				m.startIssueForm()
-			}
-			return m, nil
-		case key.Matches(msg, m.keys.Renew):
-			if m.route == routeLoans {
-				return m.renewSelectedLoan()
-			}
-			return m, nil
-		case key.Matches(msg, m.keys.Return):
-			if m.route == routeLoans {
-				return m.returnSelectedLoan()
-			}
-			return m, nil
-		}
+		return m.updateKeyMsg(msg)
 	}
 
 	var cmd tea.Cmd
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
+}
+
+func (m Model) updateKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if handled, next, cmd := m.handleGlobalKeys(msg); handled {
+		return next, cmd
+	}
+
+	if m.confirming {
+		return m.updateConfirm(msg)
+	}
+
+	if m.activeForm != nil {
+		return m.updateForm(msg)
+	}
+
+	if m.searching {
+		return m.handleSearchKeys(msg)
+	}
+
+	if handled, next, cmd := m.handleRouteNavigationKeys(msg); handled {
+		return next, cmd
+	}
+
+	if handled, next, cmd := m.handleRouteJumpKeys(msg); handled {
+		return next, cmd
+	}
+
+	if handled, next, cmd := m.handleActionKeys(msg); handled {
+		return next, cmd
+	}
+
+	var cmd tea.Cmd
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m Model) handleGlobalKeys(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.Quit) {
+		m.logger.Info("quitting")
+		return true, m, tea.Quit
+	}
+
+	if key.Matches(msg, m.keys.ToggleHelp) {
+		m.showHelp = !m.showHelp
+		m.help.ShowAll = m.showHelp
+		return true, m, nil
+	}
+
+	return false, m, nil
+}
+
+func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.Cancel) {
+		m.searching = false
+		m.searchInput.Blur()
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.searchInput, cmd = m.searchInput.Update(msg)
+	m.searchQuery = m.searchInput.Value()
+	m.refreshRouteData()
+	return m, cmd
+}
+
+func (m Model) handleRouteNavigationKeys(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.NextRoute) {
+		m.route = nextRoute(m.route)
+		m.refreshRouteData()
+		return true, m, m.setStatus(fmt.Sprintf("Switched to %s", m.route), statusInfo)
+	}
+
+	if key.Matches(msg, m.keys.PrevRoute) {
+		m.route = prevRoute(m.route)
+		m.refreshRouteData()
+		return true, m, m.setStatus(fmt.Sprintf("Switched to %s", m.route), statusInfo)
+	}
+
+	return false, m, nil
+}
+
+func (m Model) handleRouteJumpKeys(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
+	target, ok := m.routeTargetForKey(msg)
+	if !ok {
+		return false, m, nil
+	}
+
+	m.route = target
+	m.refreshRouteData()
+	return true, m, nil
+}
+
+func (m Model) routeTargetForKey(msg tea.KeyMsg) (route, bool) {
+	switch {
+	case key.Matches(msg, m.keys.Dashboard):
+		return routeDashboard, true
+	case key.Matches(msg, m.keys.Books):
+		return routeBooks, true
+	case key.Matches(msg, m.keys.Members):
+		return routeMembers, true
+	case key.Matches(msg, m.keys.Loans):
+		return routeLoans, true
+	case key.Matches(msg, m.keys.Reports):
+		return routeReports, true
+	case key.Matches(msg, m.keys.Settings):
+		return routeSettings, true
+	default:
+		return "", false
+	}
+}
+
+func (m Model) handleActionKeys(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.Search) {
+		m.searching = true
+		m.searchInput.Focus()
+		return true, m, nil
+	}
+
+	if key.Matches(msg, m.keys.Add) {
+		next, cmd := m.startAddFlow()
+		return true, next.(Model), cmd
+	}
+
+	if key.Matches(msg, m.keys.CreateCopy) {
+		if m.route == routeBooks {
+			m.startCopyForm(m.selectedID())
+		}
+		return true, m, nil
+	}
+
+	if key.Matches(msg, m.keys.Archive) {
+		next, cmd := m.startArchiveOrToggleConfirm()
+		return true, next.(Model), cmd
+	}
+
+	if key.Matches(msg, m.keys.Filter) {
+		if m.route == routeLoans {
+			m.cycleLoanFilter()
+			m.refreshRouteData()
+			return true, m, m.setStatus("Loan filter: "+string(m.loanFilter), statusInfo)
+		}
+		return true, m, nil
+	}
+
+	if key.Matches(msg, m.keys.Issue) {
+		if m.route == routeLoans {
+			m.startIssueForm()
+		}
+		return true, m, nil
+	}
+
+	if key.Matches(msg, m.keys.Renew) {
+		if m.route == routeLoans {
+			next, cmd := m.renewSelectedLoan()
+			return true, next.(Model), cmd
+		}
+		return true, m, nil
+	}
+
+	if key.Matches(msg, m.keys.Return) {
+		if m.route == routeLoans {
+			next, cmd := m.returnSelectedLoan()
+			return true, next.(Model), cmd
+		}
+		return true, m, nil
+	}
+
+	return false, m, nil
 }
 
 func (m Model) View() string {
@@ -391,7 +460,7 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 	}
 
 	if err != nil {
-		return m, m.setStatus("Error: "+err.Error(), statusInfo)
+		return m, m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
 	}
 
 	m.activeForm = nil
@@ -431,36 +500,50 @@ func (m Model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	id := m.selectedID()
-	var err error
-	switch m.confirmAct {
-	case confirmArchiveBook:
-		_, err = m.services.Books.Archive(m.ctx, id)
-	case confirmToggleMember:
-		members, listErr := m.services.Members.List(m.ctx)
-		if listErr != nil {
-			err = listErr
-			break
-		}
-		for _, it := range members {
-			if it.ID == id {
-				next := member.StatusInactive
-				if it.Status != member.StatusActive {
-					next = member.StatusActive
-				}
-				_, err = m.services.Members.SetStatus(m.ctx, id, next)
-				break
-			}
-		}
-	}
+	err := m.performConfirmAction(id)
 
 	m.confirming = false
 	m.confirmAct = confirmNone
 	if err != nil {
-		return m, m.setStatus("Error: "+err.Error(), statusInfo)
+		return m, m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
 	}
 
 	m.refreshRouteData()
 	return m, m.setStatus("Updated successfully", statusSuccess)
+}
+
+func (m Model) performConfirmAction(id string) error {
+	switch m.confirmAct {
+	case confirmArchiveBook:
+		_, err := m.services.Books.Archive(m.ctx, id)
+		return err
+	case confirmToggleMember:
+		return m.toggleMemberStatus(id)
+	default:
+		return nil
+	}
+}
+
+func (m Model) toggleMemberStatus(id string) error {
+	members, err := m.services.Members.List(m.ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, it := range members {
+		if it.ID != id {
+			continue
+		}
+
+		next := member.StatusInactive
+		if it.Status != member.StatusActive {
+			next = member.StatusActive
+		}
+		_, err = m.services.Members.SetStatus(m.ctx, id, next)
+		return err
+	}
+
+	return nil
 }
 
 func (m Model) renewSelectedLoan() (tea.Model, tea.Cmd) {
@@ -470,7 +553,7 @@ func (m Model) renewSelectedLoan() (tea.Model, tea.Cmd) {
 	}
 
 	if _, err := m.services.Loans.Renew(m.ctx, dto.RenewLoanInput{LoanID: id}); err != nil {
-		return m, m.setStatus("Error: "+err.Error(), statusInfo)
+		return m, m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
 	}
 
 	m.refreshRouteData()
@@ -484,7 +567,7 @@ func (m Model) returnSelectedLoan() (tea.Model, tea.Cmd) {
 	}
 
 	if _, err := m.services.Loans.Return(m.ctx, dto.ReturnLoanInput{LoanID: id}); err != nil {
-		return m, m.setStatus("Error: "+err.Error(), statusInfo)
+		return m, m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
 	}
 
 	m.refreshRouteData()
@@ -642,10 +725,10 @@ func (m Model) reportsTable() ([]table.Column, []table.Row) {
 
 func (m Model) settingsTable() ([]table.Column, []table.Row) {
 	rows := []table.Row{
-		{"storage.path", m.config.StoragePath, "env/default"},
-		{"loan.days", fmt.Sprintf("%d", m.config.LoanDays), "env/default"},
-		{"loan.max_per_member", fmt.Sprintf("%d", m.config.MaxLoansPerUser), "env/default"},
-		{"loan.max_renewals", fmt.Sprintf("%d", m.config.MaxLoanRenewals), "env/default"},
+		{"storage.path", m.config.StoragePath, settingsSourceEnvDefault},
+		{"loan.days", fmt.Sprintf("%d", m.config.LoanDays), settingsSourceEnvDefault},
+		{"loan.max_per_member", fmt.Sprintf("%d", m.config.MaxLoansPerUser), settingsSourceEnvDefault},
+		{"loan.max_renewals", fmt.Sprintf("%d", m.config.MaxLoanRenewals), settingsSourceEnvDefault},
 	}
 	return []table.Column{{Title: "Key", Width: 28}, {Title: "Value", Width: 34}, {Title: "Source", Width: 18}}, rows
 }
