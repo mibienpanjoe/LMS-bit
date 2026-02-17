@@ -15,6 +15,13 @@ type keyMap struct {
 	Settings   key.Binding
 	Search     key.Binding
 	Cancel     key.Binding
+	Add        key.Binding
+	CreateCopy key.Binding
+	Issue      key.Binding
+	Renew      key.Binding
+	Return     key.Binding
+	Filter     key.Binding
+	Archive    key.Binding
 	Danger     key.Binding
 	Accept     key.Binding
 	Reject     key.Binding
@@ -70,6 +77,34 @@ func newKeyMap() keyMap {
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "cancel"),
 		),
+		Add: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "add"),
+		),
+		CreateCopy: key.NewBinding(
+			key.WithKeys("c"),
+			key.WithHelp("c", "add copy"),
+		),
+		Issue: key.NewBinding(
+			key.WithKeys("i"),
+			key.WithHelp("i", "issue"),
+		),
+		Renew: key.NewBinding(
+			key.WithKeys("n"),
+			key.WithHelp("n", "renew"),
+		),
+		Return: key.NewBinding(
+			key.WithKeys("t"),
+			key.WithHelp("t", "return"),
+		),
+		Filter: key.NewBinding(
+			key.WithKeys("f"),
+			key.WithHelp("f", "filter"),
+		),
+		Archive: key.NewBinding(
+			key.WithKeys("x"),
+			key.WithHelp("x", "archive/toggle"),
+		),
 		Danger: key.NewBinding(
 			key.WithKeys("ctrl+d"),
 			key.WithHelp("ctrl+d", "confirm"),
@@ -86,13 +121,14 @@ func newKeyMap() keyMap {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.NextRoute, k.Search, k.ToggleHelp, k.Quit}
+	return []key.Binding{k.NextRoute, k.Add, k.Search, k.ToggleHelp, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.NextRoute, k.PrevRoute, k.Search, k.Cancel},
 		{k.Dashboard, k.Books, k.Members, k.Loans, k.Reports, k.Settings},
+		{k.Add, k.CreateCopy, k.Issue, k.Renew, k.Return, k.Filter, k.Archive},
 		{k.Danger, k.Accept, k.Reject, k.ToggleHelp, k.Quit},
 	}
 }

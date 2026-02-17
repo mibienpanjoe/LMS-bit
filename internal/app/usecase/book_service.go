@@ -58,3 +58,7 @@ func (s BookService) Archive(ctx context.Context, id string) (book.Book, error) 
 
 	return b, nil
 }
+
+func (s BookService) List(ctx context.Context) ([]book.Book, error) {
+	return s.books.List(ctx)
+}

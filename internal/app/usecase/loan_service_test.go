@@ -115,6 +115,14 @@ func (r *copyRepo) GetByID(_ context.Context, id string) (copy.Copy, error) {
 	return c, nil
 }
 
+func (r *copyRepo) List(_ context.Context) ([]copy.Copy, error) {
+	out := make([]copy.Copy, 0, len(r.copies))
+	for _, c := range r.copies {
+		out = append(out, c)
+	}
+	return out, nil
+}
+
 type memberRepo struct {
 	members map[string]member.Member
 }
@@ -130,6 +138,14 @@ func (r *memberRepo) GetByID(_ context.Context, id string) (member.Member, error
 		return member.Member{}, shared.ErrNotFound
 	}
 	return m, nil
+}
+
+func (r *memberRepo) List(_ context.Context) ([]member.Member, error) {
+	out := make([]member.Member, 0, len(r.members))
+	for _, m := range r.members {
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 type loanRepo struct {
@@ -160,6 +176,14 @@ func (r *loanRepo) CountActiveByMemberID(_ context.Context, memberID string) (in
 	return count, nil
 }
 
+func (r *loanRepo) List(_ context.Context) ([]loan.Loan, error) {
+	out := make([]loan.Loan, 0, len(r.loans))
+	for _, l := range r.loans {
+		out = append(out, l)
+	}
+	return out, nil
+}
+
 type bookRepo struct {
 	books map[string]book.Book
 }
@@ -175,4 +199,12 @@ func (r *bookRepo) GetByID(_ context.Context, id string) (book.Book, error) {
 		return book.Book{}, shared.ErrNotFound
 	}
 	return b, nil
+}
+
+func (r *bookRepo) List(_ context.Context) ([]book.Book, error) {
+	out := make([]book.Book, 0, len(r.books))
+	for _, b := range r.books {
+		out = append(out, b)
+	}
+	return out, nil
 }

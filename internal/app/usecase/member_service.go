@@ -61,3 +61,7 @@ func (s MemberService) SetStatus(ctx context.Context, memberID string, status me
 
 	return m, nil
 }
+
+func (s MemberService) List(ctx context.Context) ([]member.Member, error) {
+	return s.members.List(ctx)
+}

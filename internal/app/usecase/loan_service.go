@@ -118,3 +118,24 @@ func (s LoanService) Return(ctx context.Context, input dto.ReturnLoanInput) (loa
 
 	return returned, nil
 }
+
+func (s LoanService) List(ctx context.Context) ([]loan.Loan, error) {
+	return s.loans.List(ctx)
+}
+
+func (s LoanService) ListOverdue(ctx context.Context) ([]loan.Loan, error) {
+	all, err := s.loans.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := s.clock.Now()
+	out := make([]loan.Loan, 0)
+	for _, l := range all {
+		if l.IsOverdue(now) {
+			out = append(out, l)
+		}
+	}
+
+	return out, nil
+}

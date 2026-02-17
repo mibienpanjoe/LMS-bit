@@ -38,3 +38,15 @@ func (r *BookRepository) GetByID(_ context.Context, id string) (book.Book, error
 
 	return b, nil
 }
+
+func (r *BookRepository) List(_ context.Context) ([]book.Book, error) {
+	r.store.mu.RLock()
+	defer r.store.mu.RUnlock()
+
+	out := make([]book.Book, 0, len(r.store.data.Books))
+	for _, b := range r.store.data.Books {
+		out = append(out, b)
+	}
+
+	return out, nil
+}

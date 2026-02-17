@@ -52,3 +52,15 @@ func (r *LoanRepository) CountActiveByMemberID(_ context.Context, memberID strin
 
 	return count, nil
 }
+
+func (r *LoanRepository) List(_ context.Context) ([]loan.Loan, error) {
+	r.store.mu.RLock()
+	defer r.store.mu.RUnlock()
+
+	out := make([]loan.Loan, 0, len(r.store.data.Loans))
+	for _, l := range r.store.data.Loans {
+		out = append(out, l)
+	}
+
+	return out, nil
+}

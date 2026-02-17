@@ -38,3 +38,15 @@ func (r *MemberRepository) GetByID(_ context.Context, id string) (member.Member,
 
 	return m, nil
 }
+
+func (r *MemberRepository) List(_ context.Context) ([]member.Member, error) {
+	r.store.mu.RLock()
+	defer r.store.mu.RUnlock()
+
+	out := make([]member.Member, 0, len(r.store.data.Members))
+	for _, m := range r.store.data.Members {
+		out = append(out, m)
+	}
+
+	return out, nil
+}

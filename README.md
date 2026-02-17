@@ -7,6 +7,13 @@ Library management system built with Go and a TUI stack:
 
 ## Current Status
 
+Phase 4 feature views complete:
+- Books view with add, archive, and copy creation workflows
+- Members view with registration and status toggle
+- Loans view with issue, renew, return, and status filter
+- Reports view showing overdue loans
+- Dashboard and settings views now populated from persisted data
+
 Phase 3 TUI core framework complete:
 - Route-based shell (Dashboard, Books, Members, Loans, Reports, Settings)
 - Global and contextual keymaps with help integration

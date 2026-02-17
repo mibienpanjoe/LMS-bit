@@ -38,3 +38,15 @@ func (r *CopyRepository) GetByID(_ context.Context, id string) (copy.Copy, error
 
 	return c, nil
 }
+
+func (r *CopyRepository) List(_ context.Context) ([]copy.Copy, error) {
+	r.store.mu.RLock()
+	defer r.store.mu.RUnlock()
+
+	out := make([]copy.Copy, 0, len(r.store.data.Copies))
+	for _, c := range r.store.data.Copies {
+		out = append(out, c)
+	}
+
+	return out, nil
+}
