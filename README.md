@@ -7,6 +7,12 @@ Library management system built with Go and a TUI stack:
 
 ## Current Status
 
+Phase 2 persistence layer complete:
+- JSON storage adapter with schema versioning
+- Atomic temp-file write and replace for safer persistence
+- Repository implementations for books, copies, members, and loans
+- Persistence tests for read-write-read consistency and corrupt-file handling
+
 Phase 1 domain and use case foundation complete:
 - Domain entities: books, copies, members, loans
 - Core lending rules: issue eligibility, renew constraints, return handling, overdue checks
