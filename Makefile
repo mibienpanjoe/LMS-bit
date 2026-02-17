@@ -1,6 +1,6 @@
 APP_NAME := lms
 
-.PHONY: run build test test-race lint tidy fmt
+.PHONY: run build test test-race bench lint tidy fmt
 
 run:
 	go run ./cmd/lms
@@ -13,6 +13,9 @@ test:
 
 test-race:
 	go test -race ./...
+
+bench:
+	go test -run ^$ -bench . -benchmem ./...
 
 lint:
 	golangci-lint run

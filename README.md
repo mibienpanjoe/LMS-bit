@@ -7,6 +7,13 @@ Library management system built with Go and a TUI stack:
 
 ## Current Status
 
+Phase 5 hardening and quality complete:
+- Added integration tests for issue/renew/return flow and overdue persistence after reopen
+- Added race detector and benchmark workflow via Make targets
+- Added `BenchmarkLoanServiceListOverdue10k` baseline performance test
+- Improved startup seed error handling with warning logs
+- Improved ID generation fallback for safer uniqueness on entropy failure
+
 Phase 4 feature views complete:
 - Books view with add, archive, and copy creation workflows
 - Members view with registration and status toggle
@@ -51,6 +58,8 @@ make run
 
 ```bash
 make test
+make test-race
+make bench
 make lint
 ```
 
@@ -58,3 +67,4 @@ make lint
 
 - `docs/SRS.md`
 - `docs/MVP_PLAN.md`
+- `docs/PHASE5_RELEASE_NOTES.md`

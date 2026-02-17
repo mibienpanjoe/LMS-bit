@@ -63,7 +63,9 @@ func main() {
 		Loans:   loanService,
 	}
 
-	seedInitialData(context.Background(), services)
+	if err := seedInitialData(context.Background(), services); err != nil {
+		logger.Warn("seed data skipped", "error", err)
+	}
 
 	program := tea.NewProgram(tui.NewModel(cfg, logger, services), tea.WithAltScreen())
 
@@ -89,10 +91,14 @@ func main() {
 	}
 }
 
-func seedInitialData(ctx context.Context, services tui.Services) {
+func seedInitialData(ctx context.Context, services tui.Services) error {
 	books, err := services.Books.List(ctx)
-	if err != nil || len(books) > 0 {
-		return
+	if err != nil {
+		return err
+	}
+
+	if len(books) > 0 {
+		return nil
 	}
 
 	b, err := services.Books.Create(ctx, dto.CreateBookInput{
@@ -101,20 +107,26 @@ func seedInitialData(ctx context.Context, services tui.Services) {
 		ISBN:    "9780134190440",
 	})
 	if err != nil {
-		return
+		return err
 	}
 
 	c, err := services.Copies.Create(ctx, dto.CreateCopyInput{BookID: b.ID, Barcode: "GO-CP-01"})
 	if err != nil {
-		return
+		return err
 	}
 
-	_, _ = services.Copies.Create(ctx, dto.CreateCopyInput{BookID: b.ID, Barcode: "GO-CP-02"})
+	if _, err := services.Copies.Create(ctx, dto.CreateCopyInput{BookID: b.ID, Barcode: "GO-CP-02"}); err != nil {
+		return err
+	}
 
 	m, err := services.Members.Register(ctx, dto.RegisterMemberInput{Name: "Demo User", Email: "demo@local"})
 	if err != nil {
-		return
+		return err
 	}
 
-	_, _ = services.Loans.Issue(ctx, dto.IssueLoanInput{CopyID: c.ID, MemberID: m.ID})
+	if _, err := services.Loans.Issue(ctx, dto.IssueLoanInput{CopyID: c.ID, MemberID: m.ID}); err != nil {
+		return err
+	}
+
+	return nil
 }
