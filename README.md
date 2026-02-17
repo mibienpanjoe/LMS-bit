@@ -7,6 +7,13 @@ Library management system built with Go and a TUI stack:
 
 ## Current Status
 
+Phase 3 TUI core framework complete:
+- Route-based shell (Dashboard, Books, Members, Loans, Reports, Settings)
+- Global and contextual keymaps with help integration
+- Shared table and search interaction patterns
+- Status bar notifications and confirmation modal scaffold
+- Resize-aware layout with minimum terminal fallback
+
 Phase 2 persistence layer complete:
 - JSON storage adapter with schema versioning
 - Atomic temp-file write and replace for safer persistence
