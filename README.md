@@ -7,7 +7,13 @@ Library management system built with Go and a TUI stack:
 
 ## Current Status
 
-Phase 0 bootstrap complete:
+Phase 1 domain and use case foundation complete:
+- Domain entities: books, copies, members, loans
+- Core lending rules: issue eligibility, renew constraints, return handling, overdue checks
+- Application service layer with ports/repositories and DTOs
+- Unit tests for critical loan rules and loan service behavior
+
+Phase 0 remains in place:
 - Go module and app entrypoint
 - Basic Bubble Tea shell with key bindings
 - Config and logging scaffolding
