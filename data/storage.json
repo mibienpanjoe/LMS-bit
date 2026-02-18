@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "books": {
+    "1767ba76d0be": {
+      "ID": "1767ba76d0be",
+      "Title": "The Go Programming Language",
+      "Authors": [
+        "Alan Donovan"
+      ],
+      "ISBN": "9780134190440",
+      "Category": "",
+      "Publisher": "",
+      "Year": 0,
+      "Status": "active"
+    }
+  },
+  "copies": {
+    "5a7f592ec300": {
+      "ID": "5a7f592ec300",
+      "BookID": "1767ba76d0be",
+      "Barcode": "GO-CP-01",
+      "Status": "loaned",
+      "ConditionNote": ""
+    },
+    "af9d8cc326c6": {
+      "ID": "af9d8cc326c6",
+      "BookID": "1767ba76d0be",
+      "Barcode": "GO-CP-02",
+      "Status": "available",
+      "ConditionNote": ""
+    }
+  },
+  "members": {
+    "9065995758a7": {
+      "ID": "9065995758a7",
+      "Name": "Demo User",
+      "Email": "demo@local",
+      "Phone": "",
+      "JoinedAt": "2026-02-17T14:04:34.412973434Z",
+      "Status": "active"
+    }
+  },
+  "loans": {
+    "3daefb434fc9": {
+      "ID": "3daefb434fc9",
+      "CopyID": "5a7f592ec300",
+      "MemberID": "9065995758a7",
+      "IssuedAt": "2026-02-17T14:04:34.413064916Z",
+      "DueAt": "2026-03-03T14:04:34.413064916Z",
+      "ReturnedAt": null,
+      "RenewalCount": 0,
+      "Status": "active"
+    }
+  }
+}

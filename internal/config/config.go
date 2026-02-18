@@ -16,7 +16,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		AppName:         getEnv("LMS_APP_NAME", "LMS-bit"),
+		AppName:         getEnv("LMS_APP_NAME", "Library Management System"),
 		LogLevel:        getEnv("LMS_LOG_LEVEL", "info"),
 		StoragePath:     getEnv("LMS_STORAGE_PATH", "data/storage.json"),
 		LoanDays:        getEnvInt("LMS_LOAN_DAYS", 14),

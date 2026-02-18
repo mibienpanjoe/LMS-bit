@@ -608,9 +608,11 @@ func (m *Model) refreshRouteData() {
 		cols, rows = m.dashboardTable()
 	}
 
-	filtered := filterRows(rows, m.searchQuery)
+	filtered := filterRows(rows, m.searchQuery, len(cols))
+	m.table.SetRows(nil)
 	m.table.SetColumns(cols)
 	m.table.SetRows(filtered)
+	m.table.SetCursor(0)
 	m.resizeTable()
 }
 
@@ -746,9 +748,9 @@ func loanMatchesFilter(l loan.Loan, state string, filter loanFilter) bool {
 	}
 }
 
-func filterRows(rows []table.Row, query string) []table.Row {
+func filterRows(rows []table.Row, query string, colCount int) []table.Row {
 	if query == "" {
-		return rows
+		return normalizeRows(rows, colCount)
 	}
 
 	q := strings.ToLower(query)
@@ -760,10 +762,43 @@ func filterRows(rows []table.Row, query string) []table.Row {
 	}
 
 	if len(filtered) == 0 {
-		return []table.Row{{"-", "No matches", "Try another search term"}}
+		empty := make(table.Row, colCount)
+		if colCount > 0 {
+			empty[0] = "-"
+		}
+		if colCount > 1 {
+			empty[1] = "No matches"
+		}
+		if colCount > 2 {
+			empty[2] = "Try another search term"
+		}
+
+		return []table.Row{empty}
 	}
 
-	return filtered
+	return normalizeRows(filtered, colCount)
+}
+
+func normalizeRows(rows []table.Row, colCount int) []table.Row {
+	if colCount <= 0 {
+		return rows
+	}
+
+	out := make([]table.Row, 0, len(rows))
+	for _, r := range rows {
+		switch {
+		case len(r) == colCount:
+			out = append(out, r)
+		case len(r) > colCount:
+			out = append(out, r[:colCount])
+		default:
+			norm := make(table.Row, colCount)
+			copy(norm, r)
+			out = append(out, norm)
+		}
+	}
+
+	return out
 }
 
 func (m *Model) resizeTable() {
