@@ -35,6 +35,13 @@ func (c Copy) Validate() error {
 		return errors.New("copy status is required")
 	}
 
+	switch c.Status {
+	case StatusAvailable, StatusLoaned, StatusDamaged, StatusLost:
+		// valid
+	default:
+		return errors.New("copy status is invalid")
+	}
+
 	return nil
 }
 

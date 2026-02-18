@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/mibienpanjoe/LMS-bit/internal/app/dto"
 	"github.com/mibienpanjoe/LMS-bit/internal/app/usecase"
 	"github.com/mibienpanjoe/LMS-bit/internal/config"
+	copydom "github.com/mibienpanjoe/LMS-bit/internal/domain/copy"
 	"github.com/mibienpanjoe/LMS-bit/internal/domain/loan"
 	"github.com/mibienpanjoe/LMS-bit/internal/domain/member"
 )
@@ -48,16 +50,21 @@ type formKind int
 
 const (
 	formBook formKind = iota
+	formEditBook
 	formCopy
+	formUpdateCopy
 	formMember
+	formEditMember
 	formIssueLoan
 )
 
 type formState struct {
-	kind   formKind
-	title  string
-	fields []textinput.Model
-	focus  int
+	targetID string
+	kind     formKind
+	title    string
+	fields   []textinput.Model
+	focus    int
+	errors   []string
 }
 
 type confirmAction int
@@ -287,6 +294,26 @@ func (m Model) handleActionKeys(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
 		return true, m, nil
 	}
 
+	if key.Matches(msg, m.keys.Edit) {
+		switch m.route {
+		case routeBooks:
+			return true, m, m.startEditBookForm()
+		case routeMembers:
+			return true, m, m.startEditMemberForm()
+		default:
+			return true, m, nil
+		}
+	}
+
+	if key.Matches(msg, m.keys.UpdateCopy) {
+		prefillCopyID := ""
+		if m.route == routeLoans {
+			prefillCopyID = m.selectedCopyID()
+		}
+		m.startUpdateCopyForm(prefillCopyID)
+		return true, m, nil
+	}
+
 	if key.Matches(msg, m.keys.Archive) {
 		next, cmd := m.startArchiveOrToggleConfirm()
 		return true, next.(Model), cmd
@@ -358,7 +385,8 @@ func (m Model) startAddFlow() (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) startBookForm() {
-	m.activeForm = newForm(formBook, "Add Book", []string{"Title", "Author", "ISBN"}, nil)
+	m.activeForm = newForm(formBook, "", "Add Book", []string{"Title", "Author", "ISBN", "Category", "Publisher", "Year"}, nil)
+	m.validateActiveForm()
 }
 
 func (m *Model) startCopyForm(bookID string) {
@@ -366,18 +394,79 @@ func (m *Model) startCopyForm(bookID string) {
 	if bookID != "" {
 		defaults[0] = bookID
 	}
-	m.activeForm = newForm(formCopy, "Add Copy", []string{"Book ID", "Barcode", "Condition Note"}, defaults)
+	m.activeForm = newForm(formCopy, "", "Add Copy", []string{"Book ID", "Barcode", "Condition Note"}, defaults)
+	m.validateActiveForm()
 }
 
 func (m *Model) startMemberForm() {
-	m.activeForm = newForm(formMember, "Register Member", []string{"Name", "Email", "Phone"}, nil)
+	m.activeForm = newForm(formMember, "", "Register Member", []string{"Name", "Email", "Phone"}, nil)
+	m.validateActiveForm()
 }
 
 func (m *Model) startIssueForm() {
-	m.activeForm = newForm(formIssueLoan, "Issue Loan", []string{"Copy ID", "Member ID"}, nil)
+	m.activeForm = newForm(formIssueLoan, "", "Issue Loan", []string{"Copy ID", "Member ID"}, nil)
+	m.validateActiveForm()
 }
 
-func newForm(kind formKind, title string, labels []string, defaults map[int]string) *formState {
+func (m *Model) startEditBookForm() tea.Cmd {
+	id := m.selectedID()
+	if id == "" {
+		return m.setStatus("Select a book first", statusInfo)
+	}
+
+	b, err := m.services.Books.GetByID(m.ctx, id)
+	if err != nil {
+		return m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
+	}
+
+	defaults := map[int]string{
+		0: b.Title,
+		1: strings.Join(b.Authors, ", "),
+		2: b.ISBN,
+		3: b.Category,
+		4: b.Publisher,
+	}
+	if b.Year > 0 {
+		defaults[5] = strconv.Itoa(b.Year)
+	}
+
+	m.activeForm = newForm(formEditBook, b.ID, "Edit Book", []string{"Title", "Author", "ISBN", "Category", "Publisher", "Year"}, defaults)
+	m.validateActiveForm()
+	return nil
+}
+
+func (m *Model) startEditMemberForm() tea.Cmd {
+	id := m.selectedID()
+	if id == "" {
+		return m.setStatus("Select a member first", statusInfo)
+	}
+
+	mm, err := m.services.Members.GetByID(m.ctx, id)
+	if err != nil {
+		return m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
+	}
+
+	defaults := map[int]string{
+		0: mm.Name,
+		1: mm.Email,
+		2: mm.Phone,
+	}
+
+	m.activeForm = newForm(formEditMember, mm.ID, "Edit Member", []string{"Name", "Email", "Phone"}, defaults)
+	m.validateActiveForm()
+	return nil
+}
+
+func (m *Model) startUpdateCopyForm(prefillCopyID string) {
+	defaults := map[int]string{}
+	if prefillCopyID != "" {
+		defaults[0] = prefillCopyID
+	}
+	m.activeForm = newForm(formUpdateCopy, "", "Update Copy", []string{"Copy ID", "Barcode", "Status", "Condition Note"}, defaults)
+	m.validateActiveForm()
+}
+
+func newForm(kind formKind, targetID, title string, labels []string, defaults map[int]string) *formState {
 	fields := make([]textinput.Model, 0, len(labels))
 	for i, l := range labels {
 		in := textinput.New()
@@ -391,7 +480,8 @@ func newForm(kind formKind, title string, labels []string, defaults map[int]stri
 	}
 	fields[0].Focus()
 
-	return &formState{kind: kind, title: title, fields: fields, focus: 0}
+	errs := make([]string, len(labels))
+	return &formState{kind: kind, targetID: targetID, title: title, fields: fields, focus: 0, errors: errs}
 }
 
 func (m Model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -402,25 +492,30 @@ func (m Model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if msg.String() == "enter" {
 		if m.activeForm.focus == len(m.activeForm.fields)-1 {
+			m.validateActiveForm()
 			return m.submitForm()
 		}
 		m.focusNextField()
+		m.validateActiveForm()
 		return m, nil
 	}
 
 	if msg.String() == "tab" {
 		m.focusNextField()
+		m.validateActiveForm()
 		return m, nil
 	}
 
 	if msg.String() == "shift+tab" {
 		m.focusPrevField()
+		m.validateActiveForm()
 		return m, nil
 	}
 
 	var cmd tea.Cmd
 	idx := m.activeForm.focus
 	m.activeForm.fields[idx], cmd = m.activeForm.fields[idx].Update(msg)
+	m.validateActiveForm()
 	return m, cmd
 }
 
@@ -445,16 +540,65 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	m.validateActiveForm()
+	if hasFormErrors(f) {
+		return m, m.setStatus("Please fix validation errors", statusInfo)
+	}
+
 	get := func(i int) string { return strings.TrimSpace(f.fields[i].Value()) }
+
+	parseYear := func(v string) (int, error) {
+		s := strings.TrimSpace(v)
+		if s == "" {
+			return 0, nil
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return 0, err
+		}
+		if n < 0 {
+			return 0, fmt.Errorf("year cannot be negative")
+		}
+		return n, nil
+	}
 
 	var err error
 	switch f.kind {
 	case formBook:
-		_, err = m.services.Books.Create(m.ctx, dto.CreateBookInput{Title: get(0), Authors: []string{get(1)}, ISBN: get(2)})
+		year, parseErr := parseYear(get(5))
+		if parseErr != nil {
+			return m, m.setStatus(statusErrorPrefix+"year must be a number", statusInfo)
+		}
+		_, err = m.services.Books.Create(m.ctx, dto.CreateBookInput{
+			Title:     get(0),
+			Authors:   splitAuthors(get(1)),
+			ISBN:      get(2),
+			Category:  get(3),
+			Publisher: get(4),
+			Year:      year,
+		})
+	case formEditBook:
+		year, parseErr := parseYear(get(5))
+		if parseErr != nil {
+			return m, m.setStatus(statusErrorPrefix+"year must be a number", statusInfo)
+		}
+		_, err = m.services.Books.Update(m.ctx, dto.UpdateBookInput{
+			ID:        f.targetID,
+			Title:     get(0),
+			Authors:   splitAuthors(get(1)),
+			ISBN:      get(2),
+			Category:  get(3),
+			Publisher: get(4),
+			Year:      year,
+		})
 	case formCopy:
 		_, err = m.services.Copies.Create(m.ctx, dto.CreateCopyInput{BookID: get(0), Barcode: get(1), ConditionNote: get(2)})
+	case formUpdateCopy:
+		_, err = m.services.Copies.Update(m.ctx, dto.UpdateCopyInput{ID: get(0), Barcode: get(1), Status: get(2), ConditionNote: get(3)})
 	case formMember:
 		_, err = m.services.Members.Register(m.ctx, dto.RegisterMemberInput{Name: get(0), Email: get(1), Phone: get(2)})
+	case formEditMember:
+		_, err = m.services.Members.Update(m.ctx, dto.UpdateMemberInput{ID: f.targetID, Name: get(0), Email: get(1), Phone: get(2)})
 	case formIssueLoan:
 		_, err = m.services.Loans.Issue(m.ctx, dto.IssueLoanInput{CopyID: get(0), MemberID: get(1)})
 	}
@@ -657,14 +801,14 @@ func (m Model) booksTable() ([]table.Column, []table.Row) {
 		if len(b.Authors) > 0 {
 			author = b.Authors[0]
 		}
-		rows = append(rows, table.Row{b.ID, b.Title, author, b.ISBN, fmt.Sprintf("%d", copyCount[b.ID]), string(b.Status)})
+		rows = append(rows, table.Row{b.ID, b.Title, author, b.ISBN, b.Category, fmt.Sprintf("%d", copyCount[b.ID]), string(b.Status)})
 	}
 
 	if len(rows) == 0 {
-		rows = []table.Row{{"-", "No books yet", "Press a to add", "", "", ""}}
+		rows = []table.Row{{"-", "No books yet", "Press a to add", "", "", "", ""}}
 	}
 
-	return []table.Column{{Title: "ID", Width: 12}, {Title: "Title", Width: 22}, {Title: "Author", Width: 16}, {Title: "ISBN", Width: 14}, {Title: "Copies", Width: 8}, {Title: "Status", Width: 10}}, rows
+	return []table.Column{{Title: "ID", Width: 12}, {Title: "Title", Width: 20}, {Title: "Author", Width: 14}, {Title: "ISBN", Width: 14}, {Title: "Category", Width: 12}, {Title: "Copies", Width: 8}, {Title: "Status", Width: 10}}, rows
 }
 
 func (m Model) membersTable() ([]table.Column, []table.Row) {
@@ -824,7 +968,7 @@ func (m *Model) resizeTable() {
 
 func (m Model) renderHeader() string {
 	title := m.styles.Header.Render(fmt.Sprintf(" %s ", m.config.AppName))
-	subtitle := m.styles.HeaderMuted.Render("Phase 4 - Feature views and workflows")
+	subtitle := m.styles.HeaderMuted.Render("by MJ")
 	nav := m.renderRouteTabs()
 	searchLine := m.renderSearchLine()
 
@@ -879,6 +1023,9 @@ func (m Model) renderForm() string {
 			prefix = "> "
 		}
 		lines = append(lines, prefix+f.View())
+		if i < len(m.activeForm.errors) && m.activeForm.errors[i] != "" {
+			lines = append(lines, "  ! "+m.activeForm.errors[i])
+		}
 	}
 	lines = append(lines, "tab/shift+tab to move, enter to continue/submit, esc to cancel")
 
@@ -928,6 +1075,99 @@ func (m Model) selectedID() string {
 		return ""
 	}
 	return row[0]
+}
+
+func (m Model) selectedCopyID() string {
+	row := m.table.SelectedRow()
+	if len(row) < 2 {
+		return ""
+	}
+	if row[0] == "-" {
+		return ""
+	}
+	return row[1]
+}
+
+func (m *Model) validateActiveForm() {
+	if m.activeForm == nil {
+		return
+	}
+	m.activeForm.errors = validateFormErrors(*m.activeForm)
+}
+
+func validateFormErrors(f formState) []string {
+	errs := make([]string, len(f.fields))
+	get := func(i int) string {
+		if i < 0 || i >= len(f.fields) {
+			return ""
+		}
+		return strings.TrimSpace(f.fields[i].Value())
+	}
+
+	req := func(i int, msg string) {
+		if get(i) == "" {
+			errs[i] = msg
+		}
+	}
+
+	switch f.kind {
+	case formBook, formEditBook:
+		req(0, "title is required")
+		req(1, "author is required")
+		year := get(5)
+		if year != "" {
+			if _, err := strconv.Atoi(year); err != nil {
+				errs[5] = "year must be a number"
+			}
+		}
+	case formCopy:
+		req(0, "book id is required")
+	case formUpdateCopy:
+		req(0, "copy id is required")
+		req(2, "status is required")
+		if get(2) != "" {
+			status := copydom.Status(strings.ToLower(get(2)))
+			switch status {
+			case copydom.StatusAvailable, copydom.StatusLoaned, copydom.StatusDamaged, copydom.StatusLost:
+			default:
+				errs[2] = "status must be available/loaned/damaged/lost"
+			}
+		}
+	case formMember, formEditMember:
+		req(0, "name is required")
+	case formIssueLoan:
+		req(0, "copy id is required")
+		req(1, "member id is required")
+	}
+
+	return errs
+}
+
+func hasFormErrors(f *formState) bool {
+	if f == nil {
+		return false
+	}
+	for _, err := range f.errors {
+		if err != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func splitAuthors(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		v := strings.TrimSpace(p)
+		if v != "" {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		return []string{strings.TrimSpace(raw)}
+	}
+	return out
 }
 
 func tableStyles() table.Styles {

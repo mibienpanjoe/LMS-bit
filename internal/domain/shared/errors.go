@@ -4,6 +4,8 @@ import "errors"
 
 var (
 	ErrNotFound           = errors.New("not found")
+	ErrDuplicateID        = errors.New("id already exists")
+	ErrDuplicateBarcode   = errors.New("barcode already exists")
 	ErrCopyNotAvailable   = errors.New("copy is not available")
 	ErrMemberNotEligible  = errors.New("member is not eligible to borrow")
 	ErrLoanLimitReached   = errors.New("member has reached active loan limit")

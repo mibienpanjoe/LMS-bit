@@ -16,7 +16,9 @@ type keyMap struct {
 	Search     key.Binding
 	Cancel     key.Binding
 	Add        key.Binding
+	Edit       key.Binding
 	CreateCopy key.Binding
+	UpdateCopy key.Binding
 	Issue      key.Binding
 	Renew      key.Binding
 	Return     key.Binding
@@ -81,9 +83,17 @@ func newKeyMap() keyMap {
 			key.WithKeys("a"),
 			key.WithHelp("a", "add"),
 		),
+		Edit: key.NewBinding(
+			key.WithKeys("e"),
+			key.WithHelp("e", "edit"),
+		),
 		CreateCopy: key.NewBinding(
 			key.WithKeys("c"),
 			key.WithHelp("c", "add copy"),
+		),
+		UpdateCopy: key.NewBinding(
+			key.WithKeys("u"),
+			key.WithHelp("u", "update copy"),
 		),
 		Issue: key.NewBinding(
 			key.WithKeys("i"),
@@ -128,7 +138,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.NextRoute, k.PrevRoute, k.Search, k.Cancel},
 		{k.Dashboard, k.Books, k.Members, k.Loans, k.Reports, k.Settings},
-		{k.Add, k.CreateCopy, k.Issue, k.Renew, k.Return, k.Filter, k.Archive},
+		{k.Add, k.Edit, k.CreateCopy, k.UpdateCopy, k.Issue, k.Renew, k.Return, k.Filter, k.Archive},
 		{k.Danger, k.Accept, k.Reject, k.ToggleHelp, k.Quit},
 	}
 }

@@ -6,3 +6,10 @@ type RegisterMemberInput struct {
 	Email string
 	Phone string
 }
+
+type UpdateMemberInput struct {
+	ID    string
+	Name  string
+	Email string
+	Phone string
+}

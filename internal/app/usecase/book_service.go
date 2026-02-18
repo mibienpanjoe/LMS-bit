@@ -2,10 +2,12 @@ package usecase
 
 import (
 	"context"
+	"errors"
 
 	"github.com/mibienpanjoe/LMS-bit/internal/app/dto"
 	"github.com/mibienpanjoe/LMS-bit/internal/app/ports"
 	"github.com/mibienpanjoe/LMS-bit/internal/domain/book"
+	"github.com/mibienpanjoe/LMS-bit/internal/domain/shared"
 )
 
 type BookService struct {
@@ -21,6 +23,12 @@ func (s BookService) Create(ctx context.Context, input dto.CreateBookInput) (boo
 	id := input.ID
 	if id == "" {
 		id = s.idGen.NewID()
+	}
+
+	if _, err := s.books.GetByID(ctx, id); err == nil {
+		return book.Book{}, shared.ErrDuplicateID
+	} else if !errors.Is(err, shared.ErrNotFound) {
+		return book.Book{}, err
 	}
 
 	b := book.Book{
@@ -43,6 +51,34 @@ func (s BookService) Create(ctx context.Context, input dto.CreateBookInput) (boo
 	}
 
 	return b, nil
+}
+
+func (s BookService) Update(ctx context.Context, input dto.UpdateBookInput) (book.Book, error) {
+	b, err := s.books.GetByID(ctx, input.ID)
+	if err != nil {
+		return book.Book{}, err
+	}
+
+	b.Title = input.Title
+	b.Authors = input.Authors
+	b.ISBN = input.ISBN
+	b.Category = input.Category
+	b.Publisher = input.Publisher
+	b.Year = input.Year
+
+	if err := b.Validate(); err != nil {
+		return book.Book{}, err
+	}
+
+	if err := s.books.Save(ctx, b); err != nil {
+		return book.Book{}, err
+	}
+
+	return b, nil
+}
+
+func (s BookService) GetByID(ctx context.Context, id string) (book.Book, error) {
+	return s.books.GetByID(ctx, id)
 }
 
 func (s BookService) Archive(ctx context.Context, id string) (book.Book, error) {

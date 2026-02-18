@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,6 +114,16 @@ func (r *copyRepo) GetByID(_ context.Context, id string) (copy.Copy, error) {
 		return copy.Copy{}, shared.ErrNotFound
 	}
 	return c, nil
+}
+
+func (r *copyRepo) GetByBarcode(_ context.Context, barcode string) (copy.Copy, error) {
+	for _, c := range r.copies {
+		if strings.TrimSpace(c.Barcode) == strings.TrimSpace(barcode) {
+			return c, nil
+		}
+	}
+
+	return copy.Copy{}, shared.ErrNotFound
 }
 
 func (r *copyRepo) List(_ context.Context) ([]copy.Copy, error) {

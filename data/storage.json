@@ -1,6 +1,18 @@
 {
   "version": 1,
   "books": {
+    "028822616264": {
+      "ID": "028822616264",
+      "Title": "Red Rising",
+      "Authors": [
+        "Pierce Brown"
+      ],
+      "ISBN": "9780345539809",
+      "Category": "",
+      "Publisher": "",
+      "Year": 0,
+      "Status": "active"
+    },
     "1767ba76d0be": {
       "ID": "1767ba76d0be",
       "Title": "The Go Programming Language",

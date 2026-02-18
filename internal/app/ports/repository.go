@@ -18,6 +18,7 @@ type BookRepository interface {
 type CopyRepository interface {
 	Save(ctx context.Context, c copy.Copy) error
 	GetByID(ctx context.Context, id string) (copy.Copy, error)
+	GetByBarcode(ctx context.Context, barcode string) (copy.Copy, error)
 	List(ctx context.Context) ([]copy.Copy, error)
 }
 
