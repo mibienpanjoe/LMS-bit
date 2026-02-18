@@ -41,6 +41,32 @@ func TestBookServiceUpdate(t *testing.T) {
 	}
 }
 
+func TestBookServiceSetStatus(t *testing.T) {
+	t.Parallel()
+
+	repo := &bookRepo{books: map[string]book.Book{
+		"b-1": {ID: "b-1", Title: "Old", Authors: []string{"Author"}, Status: book.StatusActive},
+	}}
+
+	svc := usecase.NewBookService(repo, stubIDGen{id: "ignored"})
+
+	archived, err := svc.SetStatus(context.Background(), "b-1", book.StatusArchived)
+	if err != nil {
+		t.Fatalf("archive book: %v", err)
+	}
+	if archived.Status != book.StatusArchived {
+		t.Fatalf("expected archived status got %s", archived.Status)
+	}
+
+	reactivated, err := svc.SetStatus(context.Background(), "b-1", book.StatusActive)
+	if err != nil {
+		t.Fatalf("reactivate book: %v", err)
+	}
+	if reactivated.Status != book.StatusActive {
+		t.Fatalf("expected active status got %s", reactivated.Status)
+	}
+}
+
 func TestMemberServiceRegisterDuplicateID(t *testing.T) {
 	t.Parallel()
 

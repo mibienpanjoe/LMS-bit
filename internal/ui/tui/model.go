@@ -18,6 +18,7 @@ import (
 	"github.com/mibienpanjoe/LMS-bit/internal/app/dto"
 	"github.com/mibienpanjoe/LMS-bit/internal/app/usecase"
 	"github.com/mibienpanjoe/LMS-bit/internal/config"
+	"github.com/mibienpanjoe/LMS-bit/internal/domain/book"
 	copydom "github.com/mibienpanjoe/LMS-bit/internal/domain/copy"
 	"github.com/mibienpanjoe/LMS-bit/internal/domain/loan"
 	"github.com/mibienpanjoe/LMS-bit/internal/domain/member"
@@ -72,6 +73,7 @@ type confirmAction int
 const (
 	confirmNone confirmAction = iota
 	confirmArchiveBook
+	confirmReactivateBook
 	confirmToggleMember
 )
 
@@ -620,8 +622,15 @@ func (m Model) startArchiveOrToggleConfirm() (tea.Model, tea.Cmd) {
 
 	switch m.route {
 	case routeBooks:
+		b, err := m.services.Books.GetByID(m.ctx, id)
+		if err != nil {
+			return m, m.setStatus(statusErrorPrefix+err.Error(), statusInfo)
+		}
 		m.confirming = true
 		m.confirmAct = confirmArchiveBook
+		if b.Status == book.StatusArchived {
+			m.confirmAct = confirmReactivateBook
+		}
 		return m, nil
 	case routeMembers:
 		m.confirming = true
@@ -644,6 +653,7 @@ func (m Model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	id := m.selectedID()
+	message := m.confirmSuccessMessage()
 	err := m.performConfirmAction(id)
 
 	m.confirming = false
@@ -653,18 +663,34 @@ func (m Model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	m.refreshRouteData()
-	return m, m.setStatus("Updated successfully", statusSuccess)
+	return m, m.setStatus(message, statusSuccess)
 }
 
 func (m Model) performConfirmAction(id string) error {
 	switch m.confirmAct {
 	case confirmArchiveBook:
-		_, err := m.services.Books.Archive(m.ctx, id)
+		_, err := m.services.Books.SetStatus(m.ctx, id, book.StatusArchived)
+		return err
+	case confirmReactivateBook:
+		_, err := m.services.Books.SetStatus(m.ctx, id, book.StatusActive)
 		return err
 	case confirmToggleMember:
 		return m.toggleMemberStatus(id)
 	default:
 		return nil
+	}
+}
+
+func (m Model) confirmSuccessMessage() string {
+	switch m.confirmAct {
+	case confirmArchiveBook:
+		return "Book archived"
+	case confirmReactivateBook:
+		return "Book reactivated"
+	case confirmToggleMember:
+		return "Member status updated"
+	default:
+		return "Updated successfully"
 	}
 }
 
@@ -1042,6 +1068,10 @@ func (m Model) renderConfirm() string {
 	if m.confirmAct == confirmArchiveBook {
 		title = "Archive Book"
 		body = "This will mark the selected book as archived."
+	}
+	if m.confirmAct == confirmReactivateBook {
+		title = "Reactivate Book"
+		body = "This will mark the selected book as active."
 	}
 	if m.confirmAct == confirmToggleMember {
 		title = "Toggle Member Status"

@@ -81,18 +81,26 @@ func (s BookService) GetByID(ctx context.Context, id string) (book.Book, error) 
 	return s.books.GetByID(ctx, id)
 }
 
-func (s BookService) Archive(ctx context.Context, id string) (book.Book, error) {
+func (s BookService) SetStatus(ctx context.Context, id string, status book.Status) (book.Book, error) {
 	b, err := s.books.GetByID(ctx, id)
 	if err != nil {
 		return book.Book{}, err
 	}
 
-	b.Status = book.StatusArchived
+	b.Status = status
+	if err := b.Validate(); err != nil {
+		return book.Book{}, err
+	}
+
 	if err := s.books.Save(ctx, b); err != nil {
 		return book.Book{}, err
 	}
 
 	return b, nil
+}
+
+func (s BookService) Archive(ctx context.Context, id string) (book.Book, error) {
+	return s.SetStatus(ctx, id, book.StatusArchived)
 }
 
 func (s BookService) List(ctx context.Context) ([]book.Book, error) {
